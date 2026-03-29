@@ -1,5 +1,17 @@
 # pyright: basic
 
+__all__ = [
+    "WirelessDrive",
+    "DeviceType",
+    "Settings",
+    "MACAddress",
+    "WiFiSecurity",
+    "SettingsPushState",
+    "create_pbkdf2_wpapsk_key",
+    "validate_wifi_password",
+    "do_request"
+]
+
 from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
 from hashlib import md5, sha1
@@ -12,11 +24,11 @@ from urllib.parse import unquote, urlencode, urlunsplit
 from urllib.request import Request, urlopen, HTTPError
 import xml.etree.ElementTree as ET
 
-class NullableEnum:
+class _NullableEnum:
     @classmethod
     def _missing_(cls, _): return getattr(cls, "UNKNOWN")
 
-class RequestResponse(NamedTuple):
+class _RequestResponse(NamedTuple):
     status: int
     body: bytes
     headers: Dict[str, str]
@@ -28,7 +40,7 @@ def do_request(
     query: Optional[Mapping[str, Union[str, bytes]]] = None,
     headers: Optional[Dict[str, str]] = None,
     body: Optional[Union[Dict, bytes]] = None
-) -> RequestResponse:
+) -> _RequestResponse:
     request_url = urlunsplit(("http", address, "/" + path.removeprefix("/"), "" if not query else urlencode(query), ""))
     encoded_body = body if isinstance(body, bytes) or (body is None) else urlencode(body).encode("utf-8")
     new_headers = headers or dict()
@@ -37,11 +49,11 @@ def do_request(
     req = Request(url = request_url, method = method, unverifiable = True, data = encoded_body, headers = new_headers)
     try:
         resp = cast(HTTPResponse, urlopen(req))
-        return RequestResponse(status = resp.status, body = resp.read(), headers = dict(resp.headers))
+        return _RequestResponse(status = resp.status, body = resp.read(), headers = dict(resp.headers))
     except HTTPError as he:
-        return RequestResponse(status = he.status or -1, body = he.read(), headers = dict(he.headers))
+        return _RequestResponse(status = he.status or -1, body = he.read(), headers = dict(he.headers))
 
-class DeviceType(NullableEnum, Enum):
+class DeviceType(_NullableEnum, Enum):
     # AirStash
     A01 = "A01"
     A02 = "A02"
@@ -53,15 +65,7 @@ class DeviceType(NullableEnum, Enum):
     WS_V2 = "A03E" # 64GB/128GB/200GB variant
     UNKNOWN = ""
 
-class LastErrorInfo(NamedTuple):
-    message: str
-    source: str
-    line: int
-    version: Optional[int]
-    address: Optional[int]
-    counter: Optional[int]
-    timestamp: Optional[int]
-
+# TODO: Unused
 class MACAddress(str):
     DIRECT_CONNECT_MAC_PREFIX = "D0:E4:0B:"
     HOME_CONNECT_MAC_PREFIX = "D2:E4:0B:"
@@ -118,18 +122,18 @@ class SettingsPushState(Enum):
     ERROR_ENTRY_DUPLICATE = "duplicate" # Couldn't register a new network because it is already exists.
     ERROR_ENTRY_NONEXIST = "notfound" # Couldn't remove a saved network because it doesn't already exists.
 
-class NetworkScanState(NullableEnum, Enum):
-    SCANNING = "scanning"
-    LOCKED = "locked"
-    NONE = "none"
-    UNKNOWN = ""
-
-class Coex(NamedTuple):
-    mac: bytes
-    name: str
-    current: bool
-
 class Settings(NamedTuple):
+    class Coex(NamedTuple):
+        mac: bytes
+        name: str
+        current: bool
+
+    class NetworkScanState(_NullableEnum, Enum):
+        SCANNING = "scanning"
+        LOCKED = "locked"
+        NONE = "none"
+        UNKNOWN = ""
+
     class NetworkInfo(NamedTuple):
         ssid: str
         security: WiFiSecurity
@@ -138,7 +142,7 @@ class Settings(NamedTuple):
         saved: bool
 
     class Device(NamedTuple):
-        class SecurityLevel(NullableEnum, Enum):
+        class SecurityLevel(_NullableEnum, Enum):
             NONE = "none"
             ALL = "all"
             UNKNOWN = ""
@@ -172,7 +176,7 @@ class Settings(NamedTuple):
         ios: str = ""
 
     class Battery(NamedTuple):
-        class BatteryStatus(NullableEnum, Enum):
+        class BatteryStatus(_NullableEnum, Enum):
             CHARGING = "charging"
             FULL = "charged"
             HIGH = "high"
@@ -189,14 +193,14 @@ class Settings(NamedTuple):
         clients: int = -1
 
     class Card(NamedTuple):
-        class CardStatus(NullableEnum, Enum):
+        class CardStatus(_NullableEnum, Enum):
             MOUNTED = "mounted"
             UNFORMATTED = "unformatted"
             FS_ERROR = "fserror"
             ERROR = "carderror"
             UNKNOWN = ""
 
-        class CardFileSystem(NullableEnum, Enum):
+        class CardFileSystem(_NullableEnum, Enum):
             FAT16 = "fat16"
             FAT32 = "fat32"
             EXFAT = "exfat"
@@ -215,7 +219,7 @@ class Settings(NamedTuple):
         readonly: Annotated[bool, "protected"] = False
 
     class Client(NamedTuple):
-        class ClientStatus(NullableEnum, Enum):
+        class ClientStatus(_NullableEnum, Enum):
             CONNECTING = "connecting"
             CONNECTED = "connected"
             FAILED = "failed"
@@ -234,7 +238,7 @@ class Settings(NamedTuple):
         description: str = ""
         line: int = -1
         version: int = -1
-        address: str = "" # might be a bytes or int
+        address: str = "" # Is it hex?
         pc: bytes = b""
         timestamp: int = -1
 
@@ -477,7 +481,7 @@ class WirelessDrive:
         return self.post_settings(query, post_restart = True)
 
 
-    def get_coex(self) -> List[Coex]:
+    def get_coex(self) -> List[Settings.Coex]:
         """
         Get a list of saved coex entries.
         """
@@ -489,7 +493,7 @@ class WirelessDrive:
         assert xmldata.tag == "coexlist", f"unexpected xml tag '{xmldata.tag}'"
         result = []
         for el in xmldata.findall("./coex"):
-            result.append(Coex(mac = bytes.fromhex(el.attrib["mac"]), name = el.attrib["name"], current = el.attrib.get("current") == "current"))
+            result.append(Settings.Coex(mac = bytes.fromhex(el.attrib["mac"]), name = el.attrib["name"], current = el.attrib.get("current") == "current"))
         return result
 
 
@@ -504,7 +508,7 @@ class WirelessDrive:
         return self.post_settings(query)
 
     
-    def get_networks(self, saved: bool) -> Union[List[Settings.NetworkInfo], NetworkScanState]:
+    def get_networks(self, saved: bool) -> Union[List[Settings.NetworkInfo], Settings.NetworkScanState]:
         """
         Get a list of scanned networks, or get a list of saved networks instead if `saved` is True.
         """
@@ -515,7 +519,7 @@ class WirelessDrive:
         xmldata = ET.XML(response.body)
         if not saved:
             if xmldata.tag == "status":
-                return NetworkScanState(xmldata.text)
+                return Settings.NetworkScanState(xmldata.text)
         assert xmldata.tag == "ssidlist", f"unexpected xml tag '{xmldata.tag}'"
 
         result : List[Settings.NetworkInfo] = []
@@ -545,10 +549,10 @@ class WirelessDrive:
         def _block_for_scan(interval: float) -> List[Settings.NetworkInfo]:
             sleep(interval)
             networks = self.get_networks(saved = False)
-            if type(networks) is NetworkScanState:
-                if networks == NetworkScanState.SCANNING:
+            if type(networks) is Settings.NetworkScanState:
+                if networks == Settings.NetworkScanState.SCANNING:
                     return _block_for_scan(2.0)
-                elif networks == NetworkScanState.LOCKED:
+                elif networks == Settings.NetworkScanState.LOCKED:
                     return _block_for_scan(4.0)
                 else:
                     self.post_settings(dict(group = "scan"))

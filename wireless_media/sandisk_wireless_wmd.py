@@ -142,6 +142,7 @@ class EXTHeader(NamedTuple):
 class WMDFirmware(NamedTuple):
     version: str
     file_size: int
+    timestamp: datetime
     vendor: bytes
     ext_header: EXTHeader
 
@@ -159,8 +160,13 @@ def parse_wmd_firmware_header(firmware: Path):
     HEADER_SIZE = 152
     vendor = BytesIO(handle.read(HEADER_SIZE))
 
-    # Skip these bytes now, we don't know their purpose.
-    unknown = vendor.read(16)
+    magic = vendor.read(4)
+    assert magic == bytes([0x57, 0xAE, 0x2D, 0x64]), f"invalid magic? got {magic.hex(' ')}"
+
+    # TODO: Skip these bytes now, we don't know their purpose yet, the first 4 bytes here might be CRC?
+    unknown = vendor.read(8)
+
+    timestamp = datetime.fromtimestamp(int.from_bytes(vendor.read(4), "little"))
 
     size_without_header = int.from_bytes(vendor.read(4), "little")
     assert (size_without_header + HEADER_SIZE) == total_size, f"firmware reports {size_without_header + HEADER_SIZE} bytes but file has {total_size}"
@@ -182,6 +188,7 @@ def parse_wmd_firmware_header(firmware: Path):
     info = WMDFirmware(
         version = version,
         file_size = total_size,
+        timestamp = timestamp,
         vendor = unknown,
         ext_header = EXTHeader.from_bytes(handle.read(1024)),
     )
@@ -189,7 +196,8 @@ def parse_wmd_firmware_header(firmware: Path):
     handle.close()
 
     print(f"version: {info.version}", file = stderr)
-    print(f"size: {info.file_size}", file = stderr)
+    print(f"timestamp: {info.timestamp}", file = stderr)
+    print(f"total size: {info.file_size} ({size_without_header} without header)", file = stderr)
     print(f"unknown bytes: {unknown.hex(' ')}", file = stderr)
     print(f"ext header: {info.ext_header}", file = stderr)
     return info
@@ -211,8 +219,8 @@ def to_bool(v):
 def main():
     parser = ArgumentParser()
     parser.add_argument("firmware", help = "Path of the input firmware file.", type = Path)
-    parser.add_argument("--image", "-i", help = "Path of the output EXT2 image. If not provided, just parses the firmware. If --mount is also provided this will be the directly that image will mount to.", type = Path, required = False)
-    parser.add_argument("--mount", "-m", help = "If given mounts, the EXT2 image to directory provided with --image.", type = to_bool, const = True, nargs = "?", default = None)
+    parser.add_argument("--image", "-i", help = "Path of the output EXT2 image. If not provided, just parses the firmware. If --mount is also provided, this will be the directory that image will mount to.", type = Path, required = False)
+    parser.add_argument("--mount", "-m", help = "If given, mounts the EXT2 image to directory provided with --image.", type = to_bool, const = True, nargs = "?", default = None)
     data = parser.parse_args()
     input_firmware = cast(Path, data.firmware).resolve()
     image_path = None if not data.image else cast(Path, data.image).resolve()
@@ -240,8 +248,10 @@ def main():
                 while (data := inp.read(1024)):
                     f.write(data)
         print(f"written to {str(image_path)}", file = stderr)
-        print("mount image to a empty folder with:\n    sudo mount -o loop,ro \"output.img\" -t ext2 name-of-an-empty-folder", file = stderr)
-        print("unmount image with:\n    sudo umount /dev/loop0", file = stderr)
+        print("\nmount image to an existing empty folder with:", file = stderr)
+        print(f"    sudo mount -o loop,ro -t ext2 '{str(image_path.relative_to(Path.cwd()))}' mount-folder", file = stderr)
+        print("\nunmount image with its image or folder path:", file = stderr)
+        print(f"    sudo umount '{str(image_path.relative_to(Path.cwd()))}'", file = stderr)
     elif image_path and is_mount:
         subprocess.run(["sudo", "mount", "-o", "loop,offset=152", "-t", "ext2", str(input_firmware), str(image_path)], stdout = stderr, encoding = "utf-8", check = True)
     elif image_path:

@@ -63,19 +63,27 @@ I also found this version `2.93` mirrored [on this website](https://web.archive.
 
 ### Reverse engineering
 
-The file format is just 152 bytes followed by a standard EXT2 Linux filesystem containing rootfs. See [`sandisk_wireless_wmd.py` script](./sandisk_wireless_wmd.py) to analyze the header.
+The file format is just 152 bytes followed by a standard EXT2 Linux filesystem containing rootfs. See [`sandisk_wireless_wmd.py` script](./sandisk_wireless_wmd.py) to analyze the header. It can be run from terminal as a CLI program.
+
+```bash
+# To only analyze the firmware and validate it without doing anything more
+python3 sandisk_wireless_wmd.py ./sandiskmediafirmware-3-04.img
+
+# Dumps the EXT2 filesystem image inside firmware to given path. (meaning it will just strip the first 152 bytes)
+python3 sandisk_wireless_wmd.py ./sandiskmediafirmware-3-04.img --image ext2_data.img
+```
 
 Extracting the firmware is not implemented in the script since EXT2 is already a standard format and can be extracted (with 7zip) & inspected or mounted with various tools.
 
-To mount the filesystem in Linux and explore its contents:
+To mount the firmware file directly in Linux and explore its contents to an existing empty folder, you can tell `mount` command to skip first 152 bytes, so it becomes a valid EXT2 filesystem:
 
-```
-sudo mount -o loop,offset=152 -t ext2 ./sandiskmediafirmware-3-04.img path-to-empty-folder-to-mount
+```bash
+sudo mount -o loop,offset=152 -t ext2 ./sandiskmediafirmware-3-04.img mount-folder
 ```
 
 To unmount back:
 
-```
+```bash
 sudo umount ./sandiskmediafirmware-3-04.img
-# or specifying the path of the mounted directory works too
+# Specifying the path of the mounted directory works too
 ```

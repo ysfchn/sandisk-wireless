@@ -26,6 +26,14 @@ Device configuration can be retrieved by sending a HTTP GET request to `/setting
 
 Setting configuration is done by sending a HTTP POST request to the same path, encoded in form data. Though, the accepted parameters are very limited, see the provided [`sandisk_wireless_config.py` script](./sandisk_wireless_config.py) to retrieve or/and manage the device settings without needing to use the old discontinued official app.
 
+```python
+from sandisk_wireless_config import *
+
+drive = WirelessDrive("172.25.63.1")
+settings = drive.get_settings()
+print(settings)
+```
+
 ## Crashes & soft-bricks
 
 Setting invalid configuration may crash or softbrick the device, however the device can be recovered from the both just fine. For crashes, the device just reboots itself and it will store its error reason in `storederror` element in settings XML if booting succeded.
@@ -40,7 +48,20 @@ The Android app made for this drive (`com.sandisk.connect`) also bundles the fir
 
 ### Reverse engineering
 
-See [`sandisk_wireless_df3.py` script](./sandisk_wireless_df3.py) to unpack and repack firmwares and read its comments about the byte format.
+See [`sandisk_wireless_df3.py` script](./sandisk_wireless_df3.py) to unpack and repack firmwares and read its comments about the byte format. It can be run from terminal as a CLI program.
+
+```bash
+# To only analyze the firmware and validate it without doing anything more
+python3 sandisk_wireless_df3.py ./wfd2050s.df3
+
+# Dumps the firmware contents to a non-existing directory.
+python3 sandisk_wireless_df3.py ./wfd2050s.df3 --dump dumped_contents
+
+# Un-dumps the firmware contents from an already dumped directory to a new firmware file.
+# If directory contents weren't changed, it should end up repacking the firmware which is 1:1 same with the input firmware.
+# The original firmware is still required since there are metadata and other raw flash blocks needs to be carried over.
+python3 sandisk_wireless_df3.py ./wfd2050s.df3 --dump dumped_contents --output new_firmware.df3
+```
 
 Thanks to [this post](https://forums.hak5.org/topic/41479-sandisk-wireless-connect-16g-flash-drive/) ([archive 1](https://web.archive.org/web/20250409165759/https://forums.hak5.org/topic/41479-sandisk-wireless-connect-16g-flash-drive/), [archive 2](https://archive.md/NTENm)) who published an AutoIt script to unpack `.DF3` firmwares, I was able to learn more about the byte format and improve it further in a Python script.
 
@@ -57,4 +78,4 @@ Sandisk claims these firmware variants are not interchangeable, so **only use th
 
 To flash a firmware, copy the firmware file and put it in the root of the device, and eject it from your computer. Once it has started to install, LEDs should flash rapidly. Make sure that the device has sufficient battery power during flashing to avoid permanent damage.
 
-Flashing firmwares can also be done by sending a HTTP POST request to `/settings.xml?group=firmware` with the firmware as a body triggers a flash. During flashing, the device will alternate between blue and white LED. If flashing was failed (invalid firmware), it will be reverted, and the device will blink red LED while it is still on and running normally until it gets rebooted to clear red LED.
+Flashing firmwares can also be triggered by sending a HTTP PUT request to `/settings.xml?group=firmware` with the firmware file as request body. During flashing, the device will alternate between blue and white LED. If flashing was failed (invalid firmware), it will be reverted, and the device will blink red LED while it is still on and continue to run normally. Rebooting the device will clear the blinking red LED.

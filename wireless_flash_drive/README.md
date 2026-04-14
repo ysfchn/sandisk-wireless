@@ -14,6 +14,10 @@ You can find firmwares on [archive.org](https://web.archive.org/web/*/http://dow
 
 The Android app made for this drive (`com.sandisk.aircruzer`) also bundles the firmware files inside the APK too (in resources folder: `/res/raw`), so you can extract firmwares from it if you still have that app installed on your phone.
 
+```
+$ 7z e -bso0 -o"output" "sandisk.apk" "res/raw/*.df2"
+```
+
 ### Reverse engineering
 
 Couldn't determine the byte format, seems a raw flash dump or something packed?

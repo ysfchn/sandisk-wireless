@@ -36,54 +36,7 @@ from typing import NamedTuple, Optional, Type, Tuple, cast
 from sys import stderr
 from pathlib import Path
 from datetime import datetime
-from zlib import crc32
 import struct
-
-UIMAGE_MAGIC = bytes((0x27, 0x05, 0x19, 0x56))
-GZIP_MAGIC = bytes((0x1f, 0x8b, 0x08, 0x00))
-
-# https://formats.kaitai.io/uimage/
-# TODO: Unused
-class UImageHeader(NamedTuple):
-    header_crc: int
-    timestamp: datetime
-    data_length: int
-    load_addr: int
-    entry_addr: int
-    data_crc: int
-    os_type: int
-    arch_type: int
-    image_type: int
-    comp_type: int
-    name: str
-
-    @classmethod
-    def from_bytes(cls: "Type[UImageHeader]", data: bytes) -> "UImageHeader":
-        assert len(data) == 64, f"uimage header must be 64 in length, not {len(data)}"
-        assert data[0:4] == UIMAGE_MAGIC, f"no uimage header was detected, got 0x{data[0:4].hex()}"
-        # Check if header CRC32 is correct.
-        calculated = crc32(data[0:4] + bytes(4) + data[8:64])
-        result = cls(
-            header_crc = int.from_bytes(data[4:8], "big"),
-            timestamp = datetime.fromtimestamp(int.from_bytes(data[8:12], "big")),
-            data_length = int.from_bytes(data[12:16], "big"),
-            load_addr = int.from_bytes(data[16:20], "big"),
-            entry_addr = int.from_bytes(data[20:24], "big"),
-            data_crc = int.from_bytes(data[24:28], "big"),
-            os_type = int.from_bytes(data[28:29], "big"),
-            arch_type = int.from_bytes(data[29:30], "big"),
-            image_type = int.from_bytes(data[30:31], "big"),
-            comp_type = int.from_bytes(data[31:32], "big"),
-            name = data[32:64].decode("utf-8")
-        )
-        assert calculated == result.header_crc, f"mismatched uimage header crc32, expected {result.header_crc} but got {calculated}"
-        return result
-
-    def __repr__(self) -> str:
-        return \
-            f"time={self.timestamp.isoformat()} length={self.data_length} load=0x{self.load_addr:x} entry=0x{self.entry_addr:x} " + \
-            f"os={self.os_type} arch={self.arch_type} comp={self.comp_type} itype={self.image_type} name='{self.name}' crc={self.data_crc}"
-
 
 # https://wiki.osdev.org/Ext2
 class EXTHeader(NamedTuple):

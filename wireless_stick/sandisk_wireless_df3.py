@@ -1,4 +1,5 @@
 # pyright: basic
+# ruff: noqa: UP035,UP007,UP006,RUF010
 
 #
 #    Copyright (C) 2025 Yusuf Cihan
@@ -55,10 +56,10 @@ https://forums.hak5.org/topic/30273-hack-a-sandisk-32g-wifi-enabled-flash-drive/
 import struct
 from argparse import ArgumentParser
 from hashlib import sha1
-from sys import stderr
 from io import BytesIO
 from pathlib import Path
-from typing import Sequence, Union, cast, Tuple, Dict, NamedTuple, List
+from sys import exit, stderr
+from typing import Dict, List, NamedTuple, Sequence, Tuple, Union, cast
 
 # Firmware binaries doesn't contain the name of the files, it is hardcoded inside the drive, and thus it doesn't seem
 # we can add a new file to the firmware, just replace the existing ones where they should be expected.
@@ -265,7 +266,7 @@ def parse_df3_firmware(firmware: Path):
         
         file_data = buffer.read(size)
         file_ext = FILE_EXTENSIONS.get(ft, None)
-        digest = sha1(file_data).digest().hex()
+        digest = sha1(file_data).hexdigest()
         print(f"file #{fi}, ext: {file_ext or 'UNKNOWN!'} ({ft}), size: {size}, offset: {hex(start_offset + fo)}", file = stderr)
         guessed_path = guess_filename(digest, info.version)
         if not guessed_path:
@@ -291,7 +292,7 @@ def repack_firmware(info: FirmwareInfo, input_directory: Path):
             file_list.append(f)
             continue
         input_bytes = input_path.read_bytes()
-        digest = sha1(input_bytes).digest().hex()
+        digest = sha1(input_bytes).hexdigest()
         is_unchanged = digest == f.digest
         print(f"collected: {f.path}, hash: {digest}, size: {len(input_bytes)} bytes ({'UNCHANGED' if is_unchanged else 'EDITED: ' + str(f.size - len(input_bytes)) + ' bytes less'})", file = stderr)
         file_list.append(FirmwareFile(data = input_bytes, type = f.type, size = f.size, digest = digest, path = f.path, is_unknown = f.is_unknown))
@@ -387,10 +388,9 @@ def main():
     if not input_firmware.is_file():
         print(f"input firmware '{str(input_firmware or '<not provided>')}' must be an existing firmware file!", file = stderr)
         exit(1)
-    if new_firmware:
-        if new_firmware.exists():
-            print(f"output firmware '{str(new_firmware)}' must be an non-existing file!", file = stderr)
-            exit(1)
+    if new_firmware and new_firmware.exists():
+        print(f"output firmware '{str(new_firmware)}' must be an non-existing file!", file = stderr)
+        exit(1)
     if dump_path:
         if not new_firmware:
             if dump_path.exists():

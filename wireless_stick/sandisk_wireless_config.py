@@ -1,32 +1,66 @@
 # pyright: basic
+# ruff: noqa: UP035,UP045,UP007,UP006,C408,UP018
+
+#
+#    Copyright (C) 2025 Yusuf Cihan
+#    @ysfchn https://ysfchn.com
+#
+#    This program is a free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published
+#    by the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
 
 __all__ = [
-    "WirelessDrive",
     "DeviceType",
-    "Settings",
     "MACAddress",
-    "WiFiSecurity",
+    "Settings",
     "SettingsPushState",
+    "WiFiSecurity",
+    "WirelessDrive",
     "create_pbkdf2_wpapsk_key",
-    "validate_wifi_password",
-    "do_request"
+    "do_request",
+    "validate_wifi_password"
 ]
 
+import re
+import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
 from hashlib import md5, sha1
 from http.client import HTTPResponse
-import re
 from sys import stderr
 from time import sleep
-from typing import Annotated, Dict, Mapping, NamedTuple, Optional, List, Sequence, Type, TypeVar, Union, cast, get_args, get_origin
+from typing import (
+    Annotated,
+    Dict,
+    List,
+    Mapping,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+    get_args,
+    get_origin,
+)
 from urllib.parse import unquote, urlencode, urlunsplit
-from urllib.request import Request, urlopen, HTTPError
-import xml.etree.ElementTree as ET
+from urllib.request import HTTPError, Request, urlopen
+
 
 class _NullableEnum:
     @classmethod
-    def _missing_(cls, _): return getattr(cls, "UNKNOWN")
+    def _missing_(cls, _): return getattr(cls, "UNKNOWN")  # noqa: B009
 
 class _RequestResponse(NamedTuple):
     status: int
@@ -74,7 +108,7 @@ class MACAddress(str):
         mac = str(content).upper()
         if mac.count(":") != 5:
             raise ValueError(f"doesn't appear to be a valid mac: {mac}")
-        if not all((int(x, 16) <= 0xFF for x in mac.split(":"))):
+        if not all(int(x, 16) <= 0xFF for x in mac.split(":")):
             raise ValueError(f"doesn't appear to be a valid mac: {mac}")
         return str.__new__(cls, mac)
 
@@ -475,7 +509,7 @@ class WirelessDrive:
         if same_as_admin is True:
             query["auth"] = "all"
             query["authowner"] = "owner"
-            query["authhash"] = md5(f"owner:{ssid}:{password}".encode("ISO-8859-1")).digest().hex()
+            query["authhash"] = md5(f"owner:{ssid}:{password}".encode("ISO-8859-1")).hexdigest()
         elif same_as_admin is False:
             query["auth"] = "none"
         return self.post_settings(query, post_restart = True)
@@ -517,9 +551,8 @@ class WirelessDrive:
         )
         assert response.status == 200, "failed response"
         xmldata = ET.XML(response.body)
-        if not saved:
-            if xmldata.tag == "status":
-                return Settings.NetworkScanState(xmldata.text)
+        if (not saved) and (xmldata.tag == "status"):
+            return Settings.NetworkScanState(xmldata.text)
         assert xmldata.tag == "ssidlist", f"unexpected xml tag '{xmldata.tag}'"
 
         result : List[Settings.NetworkInfo] = []

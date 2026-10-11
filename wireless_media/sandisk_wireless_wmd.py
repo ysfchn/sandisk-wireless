@@ -1,4 +1,5 @@
 # pyright: basic
+# ruff: noqa: UP035,UP045,UP006,RUF010,SIM117
 
 #
 #    Copyright (C) 2025 Yusuf Cihan
@@ -29,14 +30,15 @@ See also "sandisk_wireless_df3.py" file for Wireless Stick drives.
 (archive 1: https://web.archive.org/web/20250715204033/https://forums.hak5.org/topic/35884-sandisk-wireless-media-drive-root-crackand-other-useful-info/)
 """
 
-from argparse import ArgumentParser, ArgumentTypeError
-from io import BytesIO
-import subprocess
-from typing import NamedTuple, Optional, Type, Tuple, cast
-from sys import stderr
-from pathlib import Path
-from datetime import datetime
 import struct
+import subprocess
+from argparse import ArgumentParser, ArgumentTypeError
+from datetime import datetime, timezone
+from io import BytesIO
+from pathlib import Path
+from sys import exit, stderr
+from typing import NamedTuple, Optional, Tuple, Type, cast
+
 
 # https://wiki.osdev.org/Ext2
 class EXTHeader(NamedTuple):
@@ -119,7 +121,7 @@ def parse_wmd_firmware_header(firmware: Path):
     # TODO: Skip these bytes now, we don't know their purpose yet, the first 4 bytes here might be CRC?
     unknown = vendor.read(8)
 
-    timestamp = datetime.fromtimestamp(int.from_bytes(vendor.read(4), "little"))
+    timestamp = datetime.fromtimestamp(int.from_bytes(vendor.read(4), "little"), tz = timezone.utc)
 
     size_without_header = int.from_bytes(vendor.read(4), "little")
     assert (size_without_header + HEADER_SIZE) == total_size, f"firmware reports {size_without_header + HEADER_SIZE} bytes but file has {total_size}"
@@ -182,10 +184,10 @@ def main():
         print(f"input firmware '{str(input_firmware or '<not provided>')}' must be an existing firmware file!", file = stderr)
         exit(1)
     if image_path:
-        if image_path.exists() and (is_mount != False): # noqa: E712
+        if image_path.exists() and (is_mount != False):
             print(f"image path '{str(image_path)}' must be an non-existing path if provided!", file = stderr)
             exit(1)
-        elif (not image_path.exists()) and (is_mount == False): # noqa: E712
+        elif (not image_path.exists()) and (is_mount == False):
             print(f"image path '{str(image_path)}' must be an existing path when unmounting!", file = stderr)
             exit(1)
         if is_mount:

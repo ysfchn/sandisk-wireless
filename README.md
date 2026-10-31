@@ -10,6 +10,8 @@ They were rare to find so I was curious about how far they can be hacked and fou
 
 This repository contains several Python scripts to manage these devices with HTTP requests (as a replacement to its mobile apps) and inspect their firmware files. As a goal to make scripts have small footprint and clean code, no external dependency is required other than built-in Python libraries.
 
+![](./images/sandisk_connect_series.png)
+
 ## Devices
 
 Sandisk lists their discontinued devices in their [support page](https://web.archive.org/web/20251207131629/https://support-en.sandisk.com/app/answers/detailweb/a_id/48741), and devices in this Wireless product line listed are:
@@ -24,11 +26,9 @@ Sandisk lists their discontinued devices in their [support page](https://web.arc
 
 For Wireless Flash Drive & Wireless Stick, both are produced by "Wearable, Inc." for Sandisk, and is the clone of [Maxell Airstash](https://maxell.com.au/shop/storage-devices/wireless-storage/airstash-usb-wireless-storage/) product with Sandisk branding added on top of it, as the web server assets and software licenses mentions Airstash.
 
-64 GB and higher variants has exFAT support, assuming due to exFAT license fee, so you will need to flash the firmware that matches with the storage of your device. For 16/32 GB variants, the drive comes with FAT32 formatted instead and doesn't have exFAT support.
-
 Wearable Inc. was later [acquired by Western Digital on June 2018.](https://en.wikipedia.org/wiki/Western_Digital#:~:text=37%5D-,In,platform)
 
-See more about [Wireless Flash Drive](./wireless_flash_drive/) and [Wireless Stick](./wireless_stick/) in their respective pages.
+See more about [Wireless Flash Drive](./wireless_flash_drive/) and [Wireless Stick](./wireless_stick/) in their respective pages, firmware download links, upgrade instructions and findings on their byte formats.
 
 ### Wireless Media
 
